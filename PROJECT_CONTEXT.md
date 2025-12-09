@@ -15,26 +15,33 @@
 - **Data**: Numpy, Pandas
 
 ## 3. 已完成的核心模块 (Current Progress)
-我们已经完成了 "Industrial Prototype"（工业级原型机）：
+**Status: Phase 1 (Prototype) Completed ✅**
+
 1.  **Solver (`puzzle_model.py`)**: 
-    - 实现了基于邻接矩阵的数据结构。
-    - 实现了 "MRV 启发式剪枝" + "增量检查" + "回溯搜索" 算法。
-    - 实现了 "单一回路 (Single Loop)" 的全局拓扑检查。
-    - 性能：6x6 复杂题目耗时 < 0.1s。
+    - [x] 数据结构：基于邻接矩阵 (Adjacency Matrix)。
+    - [x] 算法核心：MRV 启发式剪枝 + 增量合法性检查 (Incremental Check)。
+    - [x] 拓扑验证：单一回路检测 (Single Loop Check w/ DFS)。
+    - [x] 性能：6x6 复杂题目耗时 < 0.1s (Real-time)。
+
 2.  **Vision (`digit_classifier.py`)**:
-    - 实现了 "Adaptive Few-shot Learning OCR"（自适应少样本学习）。
-    - 支持将学到的字形特征持久化存储到 `ocr_brain.pkl`。
-    - 实现了基于 "Grid-Point Mapping" 的精准坐标映射，解决了透视畸变问题。
+    - [x] 算法：自适应少样本学习 (Adaptive Few-shot Learning)。
+    - [x] 特性：支持 `ocr_brain.pkl` 持久化存储，越用越准。
+    - [x] 映射：基于 Grid-Point 的精准局部映射，解决透视畸变。
+
 3.  **UI (`app.py`)**:
-    - 全功能的 Streamlit 界面。
-    - 实现了 "Human-in-the-loop" 交互：用户可以在表格中修正识别结果，AI 会自动隐式学习并更新模型。
-    - 解决了 Streamlit 数据流回调卡顿问题，实现了丝滑交互。
+    - [x] 交互：Streamlit 全栈界面。
+    - [x] 亮点：Human-in-the-loop 机制（用户修正表格 -> AI 隐式学习 -> 自动更新模型）。
+    - [x] 体验：解决了 Streamlit 回调卡顿问题，实现了丝滑的 Excel 式编辑。
 
 ## 4. 下一步计划 (Next Steps)
-我们目前处于 "Phase 2: The Hinting System"。
-接下来的核心任务是让 Solver 不仅仅输出最终解，而是能够生成教学提示。
-- **任务 A**: 实现 "Hint Generation"（根据当前盘面，计算下一步逻辑突破口）。
-- **任务 B**: 识别手写线条（检测用户当前做到哪一步了）。
+我们即将进入 **"Phase 2: The Hinting System"**。
+目标是让 Solver 从“给出最终解”进化为“给出教学提示”。
+
+- **Task A (Priority)**: 实现 **Hint Generation**。
+    - 需要修改 Solver，使其能暂停在中间状态，并识别出“逻辑突破口”（即下一步该填哪条线，以及**为什么**）。
+- **Task B**: 手写线条识别。
+    - 识别用户当前已经画了哪些线，以便在现有基础上给提示。
 
 ## 5. 指令 (Instruction)
-请基于以上上下文继续协助我开发。保持代码的高性能和学术规范性。
+请读取以上代码和上下文。不要重写已完成的模块。
+直接协助我设计 Task A (提示生成算法) 的接口。
