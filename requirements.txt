@@ -1,4 +1,8 @@
-streamlit
-opencv-python
 numpy
 pandas
+opencv-python
+streamlit
+torch
+torchvision
+matplotlib
+scikit-learn
