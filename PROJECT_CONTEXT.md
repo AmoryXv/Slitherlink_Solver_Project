@@ -4,44 +4,59 @@
 
 ## 1. 项目目标 (Project Goal)
 开发一个基于计算机视觉的数回（Slitherlink）智能辅助系统。
-核心卖点不是“直接给答案”，而是 "Hinting System"（教学提示）。
-目标是发表高水平论文，强调算法的完备性、鲁棒性和人机交互学习机制。
+核心卖点不是“直接给答案”，而是 **"Hinting System"（教学提示）**。
+目标是发表高水平论文，强调算法的完备性、鲁棒性（Robustness）和人机交互学习机制（Human-in-the-loop）。
 
 ## 2. 当前技术栈 (Tech Stack)
 - **Language**: Python 3.11+
 - **IDE**: VS Code (Standard Venv)
 - **GUI**: Streamlit (Web Interface)
-- **CV**: OpenCV (opencv-python)
+- **CV & AI Core**: 
+    - **OpenCV** (opencv-python): 用于传统的网格提取和图像预处理。
+    - **PyTorch** (torch): 用于构建和运行 CNN 数字识别模型。
+    - **Scikit-learn**: 用于 K-Means 自适应阈值聚类。
 - **Data**: Numpy, Pandas
 
 ## 3. 已完成的核心模块 (Current Progress)
-**Status: Phase 1 (Prototype) Completed ✅**
+**Status: Phase 1 (Advanced Prototype) Completed ✅**
 
-1.  **Solver (`puzzle_model.py`)**: 
-    - [x] 数据结构：基于邻接矩阵 (Adjacency Matrix)。
-    - [x] 算法核心：MRV 启发式剪枝 + 增量合法性检查 (Incremental Check)。
-    - [x] 拓扑验证：单一回路检测 (Single Loop Check w/ DFS)。
-    - [x] 性能：6x6 复杂题目耗时 < 0.1s (Real-time)。
+我们已经完成了从“基础原型”到“高精度智能系统”的迭代。
 
-2.  **Vision (`digit_classifier.py`)**:
-    - [x] 算法：自适应少样本学习 (Adaptive Few-shot Learning)。
-    - [x] 特性：支持 `ocr_brain.pkl` 持久化存储，越用越准。
-    - [x] 映射：基于 Grid-Point 的精准局部映射，解决透视畸变。
+### 3.1 求解器模块 (Solver - `puzzle_model.py`)
+- [x] **架构**: 基于邻接矩阵 (Adjacency Matrix) 的 MVC 分离设计。
+- [x] **核心算法**: 
+    - **MRV (Minimum Remaining Values)** 启发式剪枝：优先处理约束最强（如数字3或0）的边缘。
+    - **增量检查 (Incremental Check)**：O(1) 复杂度的实时合法性验证。
+- [x] **拓扑验证**: 实现了基于 DFS/BFS 的 **单一回路检测 (Single Loop Check)**，确保解的拓扑唯一性。
 
-3.  **UI (`app.py`)**:
-    - [x] 交互：Streamlit 全栈界面。
-    - [x] 亮点：Human-in-the-loop 机制（用户修正表格 -> AI 隐式学习 -> 自动更新模型）。
-    - [x] 体验：解决了 Streamlit 回调卡顿问题，实现了丝滑的 Excel 式编辑。
+### 3.2 视觉与感知模块 (Vision - `vision_grid.py` & `ocr_engine.py`)
+这是本项目技术含量最高的部分，已通过多次迭代达到工业级稳定性。
+
+- [x] **网格结构提取 (Grid Extraction V7)**:
+    - **算法**: **"Median Dictatorship" (中位数独裁)** 策略。通过统计行/列点数的中位数，强力过滤由数字 "0" 组成的伪列，解决了传统聚类算法对噪点敏感的问题。
+    - **对齐**: 实现了基于透视变换 (Perspective Transform) 的精准网格拉直与切割。
+
+- [x] **智能 OCR 引擎 (Smart OCR)**:
+    - **模型**: 自研轻量级 CNN (`SimpleDigitNet`)，在混合合成数据集（粗/细字体 + 噪点增强）上训练，对印刷体具有极高鲁棒性。
+    - **TTA (Test-Time Augmentation)**: 引入 **测试时增强** 技术。推理时通过多视角（原图、平移、缩放）投票机制，消除随机误判。
+    - **全局动态校准 (Global Dynamic Calibration)**: 使用 **K-Means 聚类** 自动分析全图墨水密度分布，自适应计算“空位”与“数字”的二值化阈值，彻底解决光照变化导致的空位误判。
+
+### 3.3 交互与学习模块 (UI & Interaction - `app.py`)
+- [x] **全栈 Web 界面**: 基于 Streamlit 构建，支持拖拽上传、实时反馈。
+- [x] **可视化调试 (Visual Debugging)**: 提供了“绿线红点”的网格结构透视层，增强了系统的可解释性。
+- [x] **Human-in-the-loop (在线微调)**: 
+    - 实现了 **"Teach & Solve"** 闭环。当用户在 UI 表格中修正错误数字时，系统会自动提取对应图像样本，在后台对 CNN 模型进行**增量学习 (Online Fine-tuning)**。
+    - 实现了“越用越准”的进化能力。
 
 ## 4. 下一步计划 (Next Steps)
 我们即将进入 **"Phase 2: The Hinting System"**。
 目标是让 Solver 从“给出最终解”进化为“给出教学提示”。
 
-- **Task A (Priority)**: 实现 **Hint Generation**。
-    - 需要修改 Solver，使其能暂停在中间状态，并识别出“逻辑突破口”（即下一步该填哪条线，以及**为什么**）。
-- **Task B**: 手写线条识别。
-    - 识别用户当前已经画了哪些线，以便在现有基础上给提示。
+- **Task A (Priority): 提示生成 (Hint Generation)**
+    - 修改 Solver 接口，使其能暂停在中间状态。
+    - 识别“逻辑突破口”（Logical Bottleneck）：即下一步该填哪条线。
+    - 生成解释性文本（Explanation）：解释**为什么**必须填这条线（基于周围数字约束或回路约束）。
 
-## 5. 指令 (Instruction)
-请读取以上代码和上下文。不要重写已完成的模块。
-直接协助我设计 Task A (提示生成算法) 的接口。
+- **Task B: 手写笔迹识别 (Handwriting Recognition)**
+    - 识别用户当前在纸面上已经画了哪些线。
+    - 将用户进度与 Solver 内部状态对齐，实现上下文感知的辅助。
