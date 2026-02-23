@@ -1,7 +1,7 @@
 numpy
 pandas
 opencv-python
-streamlit
+flask
 torch
 torchvision
 matplotlib

@@ -16,6 +16,21 @@ class SlitherlinkPuzzle:
         self.h_edges = np.zeros((height + 1, width), dtype=int)
         self.v_edges = np.zeros((height, width + 1), dtype=int)
 
+        # 推理日志系统
+        self.deduction_log: List[str] = []
+        self._logging_enabled = False
+        self._verbose_logging = False  # True=逐步记录回溯, False=仅摘要
+
+    def _log(self, msg: str):
+        """统一写入推理日志（仅当日志开关打开时才记录）"""
+        if self._logging_enabled:
+            self.deduction_log.append(msg)
+
+    @staticmethod
+    def _edge_label(t: str, r: int, c: int) -> str:
+        """生成人类可读的边标签，如 H(0,2) 或 V(1,3)"""
+        return f"{'H' if t == 'h' else 'V'}({r},{c})"
+
     def print_board_fancy(self):
         print(f"\n--- Slitherlink Board ({self.height}x{self.width}) ---")
         for r in range(self.height):
@@ -129,6 +144,7 @@ class SlitherlinkPuzzle:
         在开始费劲的回溯前，先用简单规则把 0 和 3 填掉。
         这能极大减少搜索空间！
         """
+        self._log("========== 阶段一：规则预处理 (Constraint Propagation) ==========")
         print("[Solver] 正在进行规则预处理...")
         changed = True
         loop_limit = 0
@@ -144,6 +160,7 @@ class SlitherlinkPuzzle:
                         for t, tr, tc in coords:
                             if self.get_edge(t, tr, tc) == 0:
                                 self.set_edge(t, tr, tc, 2)
+                                self._log(f"  [Rule-0] 格子({r},{c})=0 → {self._edge_label(t,tr,tc)} 标记为 ✕")
                                 changed = True
             
             # Rule 3: 3 旁边如果有叉，剩下全填线
@@ -161,6 +178,7 @@ class SlitherlinkPuzzle:
                         if crosses > 0: # 只要有一个叉，剩下的全必须是线
                             for t, tr, tc in unknowns:
                                 self.set_edge(t, tr, tc, 1)
+                                self._log(f"  [Rule-3] 格子({r},{c})=3, 已有{crosses}个✕ → {self._edge_label(t,tr,tc)} 标记为 ─")
                                 changed = True
             
             # Vertex Rule: 顶点若 3 面不通，第 4 面必须不通
@@ -174,7 +192,9 @@ class SlitherlinkPuzzle:
                         # 封死最后一条路
                         _, t, tr, tc = unknown_edges[0]
                         self.set_edge(t, tr, tc, 2)
+                        self._log(f"  [Vertex] 顶点({r},{c}): 三面已封 → {self._edge_label(t,tr,tc)} 标记为 ✕")
                         changed = True
+        self._log(f"  预处理完成，共迭代 {loop_limit} 轮。")
 
     def get_edge(self, t, r, c):
         if t=='h': return self.h_edges[r][c]
@@ -260,15 +280,27 @@ class SlitherlinkPuzzle:
         if type_str == "h": self.h_edges[r][c] = val
         else: self.v_edges[r][c] = val
 
-    def solve_backtracking(self) -> bool:
+    def solve_backtracking(self, _first_call=True) -> bool:
+        if _first_call:
+            self._log("\n========== 阶段二：回溯搜索 (Backtracking with MRV) ==========")
+            self._backtrack_step = 0
+            self._backtrack_pruned = 0
+            self._solution_path = []  # 记录最终解的路径
+
         # 1. 启发式选边
         target = self.find_most_constrained_edge()
         
         # Base Case: 填满了
         if target is None:
-            return self.check_single_loop() # 只有全填完了才做昂贵的全局检查
+            result = self.check_single_loop() # 只有全填完了才做昂贵的全局检查
+            if result:
+                self._log(f"  [Loop✓] 全局单环验证通过，求解成功！")
+            elif self._verbose_logging:
+                self._log(f"  [Loop✗] 全局单环验证失败，继续回溯...")
+            return result
         
         t, r, c = target
+        label = self._edge_label(t, r, c)
         
         # 2. 递归尝试
         # 尝试顺序：对于 3 旁边的边，优先试 1 (线)；对于 0 旁边的，优先试 2 (叉)
@@ -276,17 +308,46 @@ class SlitherlinkPuzzle:
         
         # Try Line (1)
         self.set_edge(t, r, c, 1)
+        self._backtrack_step += 1
+        if self._verbose_logging:
+            self._log(f"  [Step {self._backtrack_step}] 尝试 {label} = ─(线)")
         if self.is_valid_incremental(t, r, c): # 只查局部
-            if self.solve_backtracking(): return True
+            if self.solve_backtracking(_first_call=False):
+                self._solution_path.append(f"{label} = ─(线)")
+                return True
+        else:
+            self._backtrack_pruned += 1
+            if self._verbose_logging:
+                self._log(f"    → 局部约束冲突，剪枝")
         
         # Try Cross (2)
         self.set_edge(t, r, c, 2)
+        self._backtrack_step += 1
+        if self._verbose_logging:
+            self._log(f"  [Step {self._backtrack_step}] 尝试 {label} = ✕(叉)")
         if self.is_valid_incremental(t, r, c):
-            if self.solve_backtracking(): return True
+            if self.solve_backtracking(_first_call=False):
+                self._solution_path.append(f"{label} = ✕(叉)")
+                return True
+        else:
+            self._backtrack_pruned += 1
+            if self._verbose_logging:
+                self._log(f"    → 局部约束冲突，剪枝")
             
         # Backtrack (Reset)
         self.set_edge(t, r, c, 0)
+        if self._verbose_logging:
+            self._log(f"  [回溯] {label} 还原为未知")
         return False
+
+    def _log_backtrack_summary(self):
+        """在求解结束后，输出回溯搜索的摘要统计"""
+        self._log(f"  总尝试步数: {self._backtrack_step}")
+        self._log(f"  剪枝次数:   {self._backtrack_pruned}")
+        if hasattr(self, '_solution_path') and self._solution_path:
+            self._log(f"  最终解路径 (回溯期间确定的 {len(self._solution_path)} 条边):")
+            for i, step in enumerate(reversed(self._solution_path), 1):
+                self._log(f"    {i:>3}. {step}")
 
     def check_single_loop(self) -> bool:
         """全局检查：确保只有 1 个圈"""

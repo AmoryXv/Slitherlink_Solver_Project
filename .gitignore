@@ -1,1 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Virtual Environment
 SlitherEnv/
+
+# Debug outputs
+debug_crops/
+test_images/debug_crops/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
